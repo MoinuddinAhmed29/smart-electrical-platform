@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Electrical Platform Dashboard</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f4f4f9; display: flex; gap: 20px; flex-wrap: wrap; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); width: 340px; }
+        .status-on { color: green; font-weight: bold; }
+        .status-off { color: red; font-weight: bold; }
+        .header-container { width: 100%; margin-bottom: 10px; }
+        .btn { padding: 6px 12px; margin-right: 5px; cursor: pointer; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9em; }
+        .btn:hover { background: #eee; }
+        .control-group { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed #eee; }
+    </style>
+</head>
+<body>
+    <div class="header-container">
+        <h1>Node Dashboard</h1>
+    </div>
+    
+    <div id="dashboard-container" style="display: flex; gap: 20px; flex-wrap: wrap;"></div>
+
+    <script>
+        async function updateDashboard() {
+            const response = await fetch('/data');
+            const nodes = await response.json();
+            const container = document.getElementById('dashboard-container');
+            
+            container.innerHTML = ''; 
+
+            for (const [node_id, data] of Object.entries(nodes)) {
+                const isManual = data.manual_mode ? "checked" : "";
+                
+                const ledStatus = data.led_state === 1 ? 'ON' : 'OFF';
+                const ledClass = data.led_state === 1 ? 'status-on' : 'status-off';
+                
+                const fanStatus = data.fan_state === 1 ? 'SPINNING' : 'STOPPED';
+                const fanClass = data.fan_state === 1 ? 'status-on' : 'status-off';
+                
+                const displayVoltage = Number(data.voltage).toFixed(2);
+                
+                container.innerHTML += `
+                    <div class="card">
+                        <h3>${node_id}</h3>
+                        <p>Sensor Voltage: <span>${displayVoltage}</span>V</p>
+                        
+                        <div class="control-group">
+                            <p>Light (Relay): <span class="${ledClass}">${ledStatus}</span></p>
+                            <button class="btn" onclick="sendCommand('${node_id}', 'led', 1)">Light ON</button>
+                            <button class="btn" onclick="sendCommand('${node_id}', 'led', 0)">Light OFF</button>
+                        </div>
+
+                        <div class="control-group">
+                            <p>Fan (Motor): <span class="${fanClass}">${fanStatus}</span></p>
+                            <button class="btn" onclick="sendCommand('${node_id}', 'fan', 1)">Fan ON</button>
+                            <button class="btn" onclick="sendCommand('${node_id}', 'fan', 0)">Fan OFF</button>
+                        </div>
+                        
+                        <label style="font-size: 0.9em; color: #555;">
+                            <input type="checkbox" ${isManual} onchange="sendCommand('${node_id}', 'manual', this.checked ? 1 : 0)">
+                            Manual Mode (Enable Physical Switch)
+                        </label>
+                    </div>
+                `;
+            }
+        }
+
+        async function sendCommand(node_id, action, value) {
+            await fetch(`/command/${node_id}/${action}/${value}`, { method: 'POST' });
+            updateDashboard(); 
+        }
+
+        setInterval(updateDashboard, 1000); 
+    </script>
+</body>
+</html>
